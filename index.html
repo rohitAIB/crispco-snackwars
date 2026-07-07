@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CrispCo — Snack Wars</title>
+<style>
+  :root{--bg:#14110e;--card:#1f1a15;--ink:#f4ede0;--muted:#9c9078;--accent:#ffc233;
+    --good:#6bcB77;--bad:#e5533c;--grey:#4a4335;--line:#33291f;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:12px;min-height:100vh;}
+  #app{width:100%;max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:9px;}
+  #main{flex:none;}
+  header{text-align:center;} header h1{margin:0;font-size:18px;} header h1 span{color:var(--accent);}
+  header .amb{color:var(--muted);font-size:12px;margin-top:2px;}
+  .race{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 12px;}
+  .race .lbl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;}
+  .race .you{color:var(--good);font-weight:700;} .race .them{color:var(--bad);font-weight:700;}
+  .track{position:relative;height:20px;background:#2a2117;border-radius:6px;overflow:hidden;}
+  .track .fin{position:absolute;right:0;top:0;bottom:0;width:2px;background:var(--accent);}
+  .track .youb{position:absolute;left:0;top:0;bottom:10px;background:linear-gradient(90deg,#3f7d48,#6bcB77);transition:width .5s;}
+  .track .themb{position:absolute;left:0;bottom:0;top:10px;background:linear-gradient(90deg,#7d3f39,#e5533c);transition:width .5s;}
+  .race .gap{font-size:11px;margin-top:5px;text-align:center;}
+  .race .gap.danger{color:var(--bad);font-weight:700;} .race .gap.safe{color:var(--muted);}
+
+  .board{display:flex;flex-direction:column;gap:6px;}
+  .seg{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
+  .seg .top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;}
+  .seg .nm{font-weight:600;} .seg .sz{color:var(--muted);}
+  .seg .crown{color:var(--accent);}
+  .sbar{display:flex;height:14px;border-radius:5px;overflow:hidden;background:var(--grey);font-size:9px;font-weight:700;line-height:14px;}
+  .sbar .sy{background:var(--good);color:#14110e;text-align:center;transition:width .5s;}
+  .sbar .sr{background:var(--bad);color:#14110e;text-align:center;transition:width .5s;}
+  .seg.tgt{outline:2px solid var(--accent);}
+
+  .facts{display:flex;gap:7px;}
+  .fc{flex:1;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:5px 7px;text-align:center;font-size:11px;}
+  .fc.warn{border-color:var(--bad);} .fc .lab{color:var(--muted);} .fc .v{font-weight:700;font-size:14px;}
+  .prods{font-size:11px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px 10px;}
+  .prods b{color:var(--ink);}
+  .ticker{background:#241416;border:1px solid #52302c;border-radius:9px;padding:7px 11px;font-size:12px;line-height:1.4;} .ticker b{color:var(--bad);}
+  .fx{background:#2c1a12;border:1px solid #6b3a26;border-radius:8px;padding:5px 9px;font-size:11px;color:#ffb98a;}
+  .coach{background:#16240f;border:1px solid #3f5a26;border-radius:9px;padding:8px 11px;font-size:12px;color:#c4e8a6;line-height:1.45;}
+
+  #main{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-height:150px;display:flex;flex-direction:column;gap:10px;}
+  .lead{font-size:13px;color:var(--muted);}
+  .options{display:flex;flex-direction:column;gap:7px;}
+  button.opt{background:#2b2318;color:var(--ink);border:1px solid var(--line);padding:10px 13px;border-radius:11px;text-align:left;cursor:pointer;transition:transform .06s,background .15s;}
+  button.opt:active{transform:scale(.98);background:#3a2f1f;} button.opt.def{border-color:#52302c;background:#241a18;}
+  button.opt .ol{font-size:14px;font-weight:600;} button.opt .oi{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.3;}
+  button.back{background:none;border:none;color:var(--muted);font-size:12px;text-align:left;cursor:pointer;padding:0;}
+  .speaker{color:var(--accent);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+  .prompt{font-size:15px;line-height:1.4;}
+  .tag{align-self:flex-start;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:4px 10px;border-radius:20px;}
+  .tag.good{background:#14311a;color:var(--good);} .tag.bad{background:#3a1b14;color:var(--bad);} .tag.mid{background:#2a2117;color:var(--muted);}
+  .rtext{font-size:14px;line-height:1.5;}
+  .chg{font-size:13px;} .chg .up{color:var(--good);} .chg .down{color:var(--bad);}
+  button.cont{background:var(--accent);color:#1a1305;border:none;font-weight:700;padding:12px;border-radius:11px;font-size:15px;cursor:pointer;margin-top:2px;} button.cont:active{transform:scale(.98);}
+  .end{text-align:center;} .end .big{font-size:42px;} .end h2{margin:6px 0 2px;font-size:20px;}
+  .end .sub{color:var(--muted);font-size:14px;line-height:1.5;margin:8px 0;} .end .stat{font-size:13px;margin:3px 0;} .end .stat b{color:var(--accent);}
+  .footer{text-align:center;color:var(--muted);font-size:11px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header><h1>Crisp<span>Co</span> — Snack Wars</h1>
+    <div class="amb">💰 Be ahead of BigSnack at <b style="color:var(--accent)">Q16</b> to win the shelf · <span id="help" style="color:var(--accent);cursor:pointer;border-bottom:1px dotted var(--accent)">ⓘ how to play</span></div></header>
+  <div id="hud"></div>
+  <div id="main"></div>
+  <div class="footer">win segments · watch BigSnack's moves · react with your tactics</div>
+</div>
+
+<script>
+const LEAD=24, ACQUIRE_GAP=60, DEADLINE=16, SHOWMAX=140; // WIN = ahead at Q16 (or +$24M = instant knockout)
+const SEGS=[
+  {id:'classic',emoji:'🥔',name:'Classic Chips',size:75,you:32,rival:32},
+  {id:'bold',emoji:'🌶️',name:'Bold & Novelty',size:45,you:24,rival:22},
+  {id:'healthy',emoji:'🥬',name:'Better-For-You',size:60,you:16,rival:20},
+  {id:'premium',emoji:'💎',name:'Premium',size:40,you:16,rival:34},
+];
+const FACTIONS=[
+  {key:'board',name:'Board',emoji:'🪑',fire:"the board ousts you"},
+  {key:'staff',name:'Staff',emoji:'👷',fire:"the staff walk out"},
+  {key:'press',name:'Press',emoji:'📰',fire:"the press turns on you"},
+];
+const PRODNAMES={classic:['Kettle Classics','Original Ridges','Salt & Vinegar Co','Wavy Golds'],
+  bold:['Ghost Ranch','Sriracha Blast','Nashville Hot','Wasabi Riot'],
+  healthy:['Veggie Straws+','Ancient Grain Pops','Air-Popped Co','Chickpea Crunch'],
+  premium:['Truffle Kettle','Artisan Reserve','Gold Leaf','Small-Batch No.7']};
+let S;
+
+function begin(){
+  S={segs:JSON.parse(JSON.stringify(SEGS)),m:{board:50,staff:50,press:50},quarter:1,products:[],ticker:'',pnext:{}};
+  startQuarter(true);
+}
+const seg=id=>S.segs.find(s=>s.id===id);
+const myValue=()=>Math.round(S.segs.reduce((a,s)=>a+s.size*s.you/100,0));
+const rivalValue=()=>Math.round(S.segs.reduce((a,s)=>a+s.size*s.rival/100,0));
+const lead=s=>s.you>s.rival;
+const low=k=>S.m[k]<35;
+const sat=share=>Math.max(0.3,Math.min(1,(100-share)/60)); // market saturation: high share = harder to grow
+
+// share transfer: give `amt` share to `who` in seg, taking from 'other' first (or from foe if fromFoe)
+function shift(s,who,amt,fromFoe){
+  const foe=who==='you'?'rival':'you';
+  let take=amt;
+  if(fromFoe){const f=Math.min(take,s[foe]);s[foe]-=f;s[who]+=f;take-=f;}
+  const other=Math.max(0,100-s.you-s.rival);
+  const fo=Math.min(take,other);s[who]+=fo;take-=fo;
+  if(take>0){const f=Math.min(take,s[foe]);s[foe]-=f;s[who]+=f;}
+  s.you=Math.max(0,Math.min(100,s.you));s.rival=Math.max(0,Math.min(100,s.rival));
+}
+
+function startQuarter(first){
+  let parts=[];
+  if(!first){
+    FACTIONS.forEach(f=>S.m[f.key]=Math.max(0,S.m[f.key]-1)); // entropy
+    parts.push(rivalMove());
+  } else parts.push(`🏭 <b>BigSnack</b> owns the shelf today. Take a decisive lead to win it.`);
+  S.ticker=parts.join(' ');
+  render();
+  const dead=FACTIONS.find(f=>S.m[f.key]<=0);
+  if(dead)return end('📉',`Fired in Q${S.quarter}.`,`At $${myValue()}M, ${dead.emoji} ${dead.fire}.`);
+  if(rivalValue()-myValue()>=ACQUIRE_GAP)return end('🤝','BigSnack BOUGHT you.',`They pulled $${rivalValue()-myValue()}M ahead and swallowed CrispCo.`);
+  choosePlay();
+}
+// BigSnack's STRATEGIC move — rubber-band (eases when ahead, presses when behind) × saturation
+function rivalMove(){
+  const gap=rivalValue()-myValue();
+  const sc=Math.max(0.55,Math.min(1.12,1-gap/55)); // gentler rubber-band so your leads can stick
+  let target, kind;
+  const yourBest=S.segs.slice().sort((a,b)=>b.you*b.size-a.you*a.size)[0];
+  const itsBest=S.segs.slice().sort((a,b)=>b.rival*b.size-a.rival*a.size)[0];
+  if(myValue()>rivalValue()){target=yourBest;kind=Math.random()<0.5?'raid':'launch';}
+  else{target=Math.random()<0.5?itsBest:S.segs[Math.floor(Math.random()*4)];kind=['launch','acquire','double'][Math.floor(Math.random()*3)];}
+  const A=x=>Math.max(1,Math.round(x*sc*sat(target.rival)));
+  const before=target.you;
+  if(kind==='raid'){shift(target,'rival',A(7),true);return `🏭 <b>BigSnack</b> started a price war in ${target.emoji} ${target.name} — ripped share from you (you ${before}%→${target.you}%).`;}
+  if(kind==='acquire'){shift(target,'rival',A(10),false);return `🏭 <b>BigSnack</b> acquired a ${target.name} brand — muscling into ${target.emoji} (their share now ${target.rival}%).`;}
+  if(kind==='double'){shift(target,'rival',A(7),false);return `🏭 <b>BigSnack</b> is doubling down on ${target.emoji} ${target.name}, its stronghold (now ${target.rival}%).`;}
+  shift(target,'rival',A(8),true);return `🏭 <b>BigSnack</b> launched into ${target.emoji} ${target.name} — took ${before-target.you}% of your shelf there.`;
+}
+
+function render(){
+  const mv=myValue(),rv=rivalValue(),gap=rv-mv,danger=gap>=ACQUIRE_GAP-18;
+  const qleft=DEADLINE-S.quarter;
+  const gapTxt=danger?`⚠ BigSnack $${gap}M ahead — at +$${ACQUIRE_GAP}M they BUY you`
+    :gap>0?`BigSnack leads by $${gap}M · ${qleft} quarters left — get ahead by Q${DEADLINE}`
+    :`you lead by $${-gap}M · hold it to Q${DEADLINE} to win (or +$${LEAD}M = instant knockout)`;
+  const board=S.segs.map(s=>{
+    const oth=Math.max(0,100-s.you-s.rival);
+    return `<div class="seg" id="seg-${s.id}"><div class="top"><span class="nm">${s.emoji} ${s.name} ${lead(s)?'<span class="crown">👑 you lead</span>':''}</span><span class="sz">$${s.size}M market</span></div>
+      <div class="sbar"><div class="sy" style="width:${s.you}%">${s.you>10?s.you+'%':''}</div><div class="sr" style="width:${s.rival}%">${s.rival>10?s.rival+'%':''}</div><div style="width:${oth}%"></div></div></div>`;}).join('');
+  const facts=FACTIONS.map(f=>`<div class="fc ${low(f.key)?'warn':''}"><div class="lab">${f.emoji} ${f.name}</div><div class="v">${S.m[f.key]}</div></div>`).join('');
+  const prod=S.products.length?`<div class="prods">🏷️ Your brands: ${S.products.map(p=>p.emoji+' <b>'+p.name+'</b>').join(' · ')}</div>`:'';
+  const fx=[]; if(low('board'))fx.push('🪑 Board sour — share gains ×0.8'); if(low('press'))fx.push('📰 Hostile press — launches flop more'); if(low('staff'))fx.push('👷 Strained ops — moves cost more');
+  document.getElementById('hud').innerHTML=`
+    <div class="race"><div class="lbl"><span class="you">You $${mv}M</span><span>Q${S.quarter}/${DEADLINE}</span><span class="them">BigSnack $${rv}M</span></div>
+      <div class="track"><div class="youb" style="width:${Math.min(100,mv/SHOWMAX*100)}%"></div><div class="themb" style="width:${Math.min(100,rv/SHOWMAX*100)}%"></div><div class="fin"></div></div>
+      <div class="gap ${danger?'danger':'safe'}">${gapTxt}</div></div>
+    <div class="board">${board}</div>
+    <div class="facts">${facts}</div>${prod}
+    ${fx.map(x=>`<div class="fx">${x}</div>`).join('')}`;
+}
+
+// ---- player plays ----
+const PLAYS={
+  launch:{emoji:'🚀',name:'Launch a product',seg:true,desc:'grab shelf in a segment (bet)'},
+  market:{emoji:'📣',name:'Marketing push',seg:true,desc:'cheaper, smaller share gain'},
+  acquire:{emoji:'🤝',name:'Acquire a brand',seg:true,desc:'big share jump; strains the board'},
+  pricewar:{emoji:'🗡️',name:'Price war',seg:true,desc:'rip share straight from BigSnack; hurts staff'},
+  stabilize:{emoji:'🛡️',name:'Stabilize',seg:false,desc:'calm a faction — no share this turn'},
+};
+// live coach — reads the board and suggests what to weigh this quarter
+function coach(){
+  const gap=rivalValue()-myValue(), qleft=DEADLINE-S.quarter;
+  const lf=FACTIONS.slice().sort((a,b)=>S.m[a.key]-S.m[b.key])[0];
+  const openVal=S.segs.reduce((a,s)=>a+s.size*Math.max(0,100-s.you-s.rival)/100,0);
+  const yourTop=S.segs.slice().sort((a,b)=>b.you*b.size-a.you*a.size)[0];
+  const attacked=S.segs.filter(s=>s.rival>=s.you&&s.you>=15).sort((a,b)=>(b.rival-b.you)-(a.rival-a.you))[0];
+  if(S.m[lf.key]<25) return `⚠ ${lf.emoji} ${lf.name} is critical (${S.m[lf.key]}). It's dragging every gain down — 🛡️ Stabilize it before it hits 0 and you're fired.`;
+  if(gap>=ACQUIRE_GAP-18) return `⚠ BigSnack is close to buying you out. Fight back with 🗡️ Price war to cut their lead — fast.`;
+  if(S.m[lf.key]<35) return `💡 ${lf.emoji} ${lf.name} is low (${S.m[lf.key]}) — below 35 it saps your share gains. Patch it soon with 🛡️ Stabilize.`;
+  if(yourTop.you>62) return `💡 You dominate ${yourTop.emoji} ${yourTop.name} (${yourTop.you}%) — it's saturated, extra share there is tiny. Grow a different category instead.`;
+  if(openVal>=22) return `💡 Lots of open (grey) shelf right now — 🚀 Launch / 🤝 Acquire to grab it cheap, and spread across categories.`;
+  if(attacked&&gap>=-5) return `💡 BigSnack is contesting ${attacked.emoji} ${attacked.name}. Defend it with 🗡️ Price war, or pivot to open shelf elsewhere.`;
+  if(gap>0) return `💡 Shelf's mostly claimed and you're behind — the way up now is 🗡️ Price war: take share straight off BigSnack (swings the gap 2×).`;
+  return `💡 You're ahead with ${qleft} quarter${qleft===1?'':'s'} left — pad the lead by 🗡️ price-warring BigSnack's best category, and keep factions healthy.`;
+}
+function choosePlay(){
+  document.getElementById('main').innerHTML=`<div class="ticker">${S.ticker}</div>
+    <div class="coach">🎓 ${coach()}</div>
+    <div class="lead">Q${S.quarter} — one play. Choose your tactic:</div>
+    <div class="options">${Object.entries(PLAYS).map(([id,p])=>
+      `<button class="opt ${p.seg?'':'def'}" data-p="${id}"><div class="ol">${p.emoji} ${p.name}</div><div class="oi">${p.desc}</div></button>`).join('')}</div>`;
+  document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>b.dataset.p==='stabilize'?pickFaction():pickSegment(b.dataset.p));
+}
+function pickSegment(play){
+  const p=PLAYS[play];
+  document.getElementById('main').innerHTML=`<button class="back">← back</button>
+    <div class="speaker">${p.emoji} ${p.name}</div><div class="prompt">Which segment?</div>
+    <div class="options">${S.segs.map(s=>{const oth=Math.max(0,100-s.you-s.rival);
+      return `<button class="opt" data-s="${s.id}"><div class="ol">${s.emoji} ${s.name} ${lead(s)?'👑':''}</div>
+        <div class="oi">you ${s.you}% · BigSnack ${s.rival}% · open ${oth}% · $${s.size}M market</div></button>`;}).join('')}</div>`;
+  document.querySelector('.back').onclick=choosePlay;
+  document.querySelectorAll('[data-s]').forEach(b=>{b.onmouseenter=()=>document.getElementById('seg-'+b.dataset.s)?.classList.add('tgt');
+    b.onmouseleave=()=>document.getElementById('seg-'+b.dataset.s)?.classList.remove('tgt');
+    b.onclick=()=>doPlay(play,b.dataset.s);});
+}
+function pickFaction(){
+  document.getElementById('main').innerHTML=`<button class="back">← back</button>
+    <div class="speaker">🛡️ Damage Control</div><div class="prompt">Reassure who? (+16, no share this turn)</div>
+    <div class="options">${FACTIONS.map(f=>`<button class="opt def" data-f="${f.key}"><div class="ol">${f.emoji} ${f.name} (${S.m[f.key]})</div></button>`).join('')}</div>`;
+  document.querySelector('.back').onclick=choosePlay;
+  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.m[b.dataset.f]=Math.min(100,S.m[b.dataset.f]+16);
+    showResult('mid','Steadied',`No shelf gained this quarter — the ${FACTIONS.find(f=>f.key===b.dataset.f).name.toLowerCase()} settle down.`,'');});
+}
+function gainMult(){let mm=1;if(low('board'))mm*=0.8;if(low('staff'))mm*=0.85;return mm;}
+function doPlay(play,segId){
+  const s=seg(segId),before=s.you,mult=gainMult()*sat(s.you);let tag='good',head,text,chgtxt;
+  const newProd=()=>{const pool=PRODNAMES[segId];const name=pool[(S.pnext[segId]||0)%pool.length];S.pnext[segId]=(S.pnext[segId]||0)+1;S.products.push({emoji:s.emoji,name});return name;};
+  if(play==='launch'){
+    const flop=Math.random()<(low('press')?0.4:0.22);
+    if(flop){tag='bad';head='Flopped';text=`Your ${s.name} launch bombed. The press had fun with it.`;S.m.press=Math.max(0,S.m.press-4);shift(s,'you',Math.round(4*mult),false);}
+    else{const name=newProd();tag='good';head='On shelves';text=`<b>${name}</b> hits shelves and moves fast in ${s.emoji} ${s.name}.`;shift(s,'you',Math.round(15*mult),false);}
+  }else if(play==='market'){head='Campaign';text=`Ads run in ${s.emoji} ${s.name}. Steady shelf gain.`;shift(s,'you',Math.round(8*mult),false);}
+  else if(play==='acquire'){const name=newProd();head='Acquired';text=`You buy <b>${name}</b> — instant scale in ${s.emoji} ${s.name}. The board grumbles about the price.`;S.m.board=Math.max(0,S.m.board-5);shift(s,'you',Math.round(18*mult),false);tag='good';}
+  else if(play==='pricewar'){head='Price war';text=`You undercut BigSnack in ${s.emoji} ${s.name} and rip share off their shelf. Margins bleed.`;S.m.staff=Math.max(0,S.m.staff-3);shift(s,'you',Math.round(11*mult),true);tag='mid';}
+  const dd=s.you-before;
+  chgtxt=`<span class="${dd>=0?'up':'down'}">${s.emoji} ${s.name}: your share ${before}% → <b>${s.you}%</b> (${dd>=0?'+':''}${dd})</span>${sat(before)<0.7?' <span style="color:var(--muted)">· market saturating — spread out</span>':''}`;
+  showResult(tag,head,text,chgtxt);
+}
+function showResult(tag,head,text,chg){
+  render();
+  const dead=FACTIONS.find(f=>S.m[f.key]<=0), win=myValue()-rivalValue()>=LEAD;
+  document.getElementById('main').innerHTML=`<span class="tag ${tag}">${head}</span><div class="rtext">${text}</div>
+    ${chg?`<div class="chg">${chg}</div>`:''}
+    <button class="cont">${dead?'See how it ended →':win?'YOU WIN THE SHELF →':'Next quarter →'}</button>`;
+  document.querySelector('.cont').onclick=()=>{
+    if(dead)return end('📉',`Fired in Q${S.quarter}.`,`At $${myValue()}M, ${dead.emoji} ${dead.fire}.`);
+    if(win)return end('🛒','YOU OWN THE SHELF.',`You led BigSnack by $${myValue()-rivalValue()}M — a decisive win, aisle by aisle.`);
+    S.quarter++;
+    if(S.quarter>DEADLINE) return myValue()>rivalValue()
+      ? end('🛒','TIME — and you were ahead.',`Q${DEADLINE} close: you $${myValue()}M vs BigSnack $${rivalValue()}M. You held the shelf.`)
+      : end('🏭','TIME — BigSnack was ahead.',`Q${DEADLINE} close: you $${myValue()}M vs BigSnack $${rivalValue()}M. They kept the shelf.`);
+    startQuarter(false);
+  };
+}
+function end(icon,title,sub){
+  const leads=S.segs.filter(lead).map(s=>s.emoji+' '+s.name);
+  document.getElementById('hud').innerHTML='';
+  document.getElementById('main').innerHTML=`<div class="end"><div class="big">${icon}</div><h2>${title}</h2><div class="sub">${sub}</div>
+    <div class="stat">Segments you led: <b>${leads.length?leads.join(', '):'none'}</b></div>
+    <div class="stat">Brands built: <b>${S.products.length}</b> · You $${myValue()}M vs BigSnack $${rivalValue()}M</div>
+    <button class="cont" style="margin-top:16px">New run →</button></div>`;
+  document.querySelector('.cont').onclick=begin;
+}
+function showIntro(onClose,label){
+  document.getElementById('hud').innerHTML='';
+  document.getElementById('main').innerHTML=`
+   <div class="speaker">How to play — Snack Wars</div>
+   <div class="rtext" style="font-size:13px;line-height:1.55">
+    <b>🎯 Goal:</b> it's a <b>16-quarter battle</b> for the snack shelf. <b>Be ahead of BigSnack in market value at Q16</b> and you win.
+    (Pull <b style="color:var(--accent)">$24M ahead</b> any time = instant knockout.) Your value = your <b>market share</b> × each category's size.<br>
+    <b>You lose</b> if BigSnack gets $60M ahead (they buy you) or any faction hits 0 (fired).<br><br>
+    <b>🗺️ The board:</b> each category bar = <span style="color:var(--good)">▮ you</span> / <span style="color:var(--bad)">▮ BigSnack</span> / <span style="color:var(--muted)">▮ open shelf</span>. Win share to grow.<br><br>
+    <b>🎮 Your 5 plays (one per quarter):</b><br>
+    🚀 <b>Launch</b> — grab open shelf, make a product (a bet)<br>
+    📣 <b>Marketing</b> — cheaper, smaller, safe shelf gain<br>
+    🤝 <b>Acquire</b> — biggest jump; costs Board goodwill<br>
+    🗡️ <b>Price war</b> — rip share straight off BigSnack (swings the gap 2×); costs Staff<br>
+    🛡️ <b>Stabilize</b> — no gain; rescue a faction near collapse<br><br>
+    <b>🏆 How to actually win:</b><br>
+    • <b>Early:</b> grab cheap <span style="color:var(--muted)">grey open shelf</span> (Launch/Acquire) across categories.<br>
+    • <b>Don't overstuff one category</b> — it <b>saturates</b> (high share → tiny gains). Spread out.<br>
+    • <b>Late:</b> shelf runs out → <b>Price war</b> BigSnack's strongholds to build & hold your lead into Q16.<br>
+    • Keep <b>Board / Staff / Press</b> above 35 — below that they cripple you. Stabilize when needed.<br>
+    • BigSnack fights harder when you're ahead — build a real lead, then defend it.
+   </div>
+   <button class="cont">${label}</button>`;
+  document.querySelector('.cont').onclick=onClose;
+}
+document.getElementById('help').onclick=()=>showIntro(()=>{ if(S){render();choosePlay();} else begin(); }, S?'← back to game':'Start →');
+showIntro(begin,'Start the game →');
+</script>
+</body>
+</html>
