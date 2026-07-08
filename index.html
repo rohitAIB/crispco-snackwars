@@ -96,7 +96,7 @@ const PRODNAMES={classic:['Kettle Classics','Original Ridges','Salt & Vinegar Co
 let S;
 
 function begin(){
-  S={segs:JSON.parse(JSON.stringify(SEGS)),m:{board:50,staff:50,press:50},quarter:1,products:[],ticker:'',pnext:{}};
+  S={segs:JSON.parse(JSON.stringify(SEGS)),m:{board:50,staff:50,press:50},quarter:1,products:[],ticker:'',pnext:{},usedEv:{},lastEv:0};
   startQuarter(true);
 }
 const seg=id=>S.segs.find(s=>s.id===id);
@@ -143,7 +143,7 @@ function startQuarter(first){
   const dead=FACTIONS.find(f=>S.m[f.key]<=0);
   if(dead)return end('📉',`Fired in Q${S.quarter}.`,`At $${myValue()}M, ${dead.emoji} ${dead.fire}.`);
   if(rivalValue()-myValue()>=ACQUIRE_GAP)return end('🤝','BigSnack BOUGHT you.',`They pulled $${rivalValue()-myValue()}M ahead and swallowed CrispCo.`);
-  choosePlay();
+  maybeEvent();
 }
 // BigSnack's STRATEGIC move — rubber-band (eases when ahead, presses when behind) × saturation
 function rivalMove(){
@@ -206,6 +206,105 @@ function coach(){
   if(S.m[lf.key]<35) return `💡 ${lf.emoji} ${lf.name} is low (${S.m[lf.key]}) — below 35 it saps your gains. Patch it with 🛡️ Stabilize.`;
   if(yourTop.you>62) return `💡 You've saturated ${yourTop.emoji} ${yourTop.name} — extra share is tiny there. Move to another category, ideally a 🔥 hot one.`;
   return `💡 Read the trends: grab shelf where it's 🔥 hot (worth more), avoid ❄️ cold, and ${gap>0?'catch up with 🗡️ price wars':'defend your lead'}.`;
+}
+// ---------------- EVENTS / DILEMMAS (state-gated situations that break the routine) ----------------
+const loseShare=(s,a)=>{ s.you=Math.max(0,s.you-a); };
+const fac=(k,a)=>{ S.m[k]=Math.max(0,Math.min(100,S.m[k]+a)); };
+const topYouSeg=()=>S.segs.slice().sort((a,b)=>b.you*b.size*b.d-a.you*a.size*a.d)[0];
+const rivalBestSeg=()=>S.segs.slice().sort((a,b)=>b.rival*b.size*b.d-a.rival*a.size*a.d)[0];
+const coldestMine=()=>S.segs.filter(s=>s.you>18).sort((a,b)=>a.d-b.d)[0];
+const hottestSeg=()=>S.segs.slice().sort((a,b)=>b.d-a.d)[0];
+const rand4=()=>S.segs[Math.floor(Math.random()*4)];
+
+const EVENTS=[
+ { id:'designer', once:true, weight:1.2, build:()=>{ const t=seg('bold');
+   return { speaker:'🎨 Maya, your star flavor designer', prompt:`Maya threatens to jump to BigSnack unless you greenlight her unhinged Ghost-Pepper Dill line for ${t.emoji} ${t.name}.`, opts:[
+    {label:'Back her — bet the farm', tag:'good', res:'It launches to chaos and acclaim. Bold is suddenly the hottest thing on shelves — and it cost a fortune.', fx:()=>{ t.d=HOT; shift(t,'you',8,false); fac('press',6); fac('board',-7); }},
+    {label:'Let her walk', tag:'bad', res:'She joins BigSnack. Your Bold lineup looks dated overnight.', fx:()=>{ shift(t,'rival',6,false); fac('press',-4); fac('board',4); }},
+    {label:'Counter-offer to keep her', tag:'mid', res:'Expensive, but she stays and the team rallies.', fx:()=>{ fac('board',-4); fac('staff',6); shift(t,'you',4,false); }} ]};}},
+ { id:'recall', weight:1, when:()=>topYouSeg().you>40, build:()=>{ const t=topYouSeg();
+   return { speaker:'⚠️ Quality Crisis', prompt:`Metal shavings turn up in your ${t.emoji} ${t.name} line — your strongest category. It's hours from the evening news.`, opts:[
+    {label:'Full recall, own it', tag:'good', res:'Costly and humbling — but you look like the adult in the room.', fx:()=>{ loseShare(t,8); fac('board',-6); fac('press',8); }},
+    {label:'Quietly bury it', tag:'bad', res:'It stays buried… exactly as long as buried things do.', fx:()=>{ fac('press',-11); }},
+    {label:'Blame the supplier', tag:'mid', res:'You deflect. Half-convincing.', fx:()=>{ fac('press',-4); fac('board',2); }} ]};}},
+ { id:'viral', weight:1.3, build:()=>{ const t=[...S.segs].filter(s=>s.d<1.25)[Math.floor(Math.random()*Math.max(1,S.segs.filter(s=>s.d<1.25).length))]||rand4();
+   return { speaker:'📱 Trending Now', prompt:`A TikTok challenge just made ${t.emoji} ${t.name} explode. Demand is spiking this quarter.`, opts:[
+    {label:`Rush product into ${t.name}`, tag:'good', res:'You ride the wave before anyone else.', fx:()=>{ t.d=HOT; shift(t,'you',10,false); fac('board',-4); }},
+    {label:'Stay disciplined', tag:'mid', res:'You hold — but the category heats up anyway, for everyone.', fx:()=>{ t.d=HOT; }} ]};}},
+ { id:'acq', weight:1, build:()=>{ const t=[...S.segs].sort((a,b)=>(100-b.you-b.rival)-(100-a.you-a.rival))[0];
+   return { speaker:'🤝 M&A Desk', prompt:`A beloved cult brand in ${t.emoji} ${t.name} is quietly for sale — cheap, but only this quarter.`, opts:[
+    {label:'Buy it', tag:'good', res:'Instant scale and street-cred in the category.', fx:()=>{ shift(t,'you',14,false); fac('board',-6); }},
+    {label:'Pass', tag:'bad', res:'BigSnack snaps it up instead.', fx:()=>{ shift(t,'rival',10,false); }} ]};}},
+ { id:'poach', once:true, weight:1, build:()=>{ const t=rivalBestSeg();
+   return { speaker:'🏭 BigSnack Strikes', prompt:`BigSnack just poached your CMO with a monster package.`, opts:[
+    {label:'Poach their star right back', tag:'good', res:`Tit for tat. Their momentum in ${t.name} stalls.`, fx:()=>{ fac('staff',-4); shift(t,'you',6,true); }},
+    {label:'Sue over the non-compete', tag:'mid', res:'Messy, but it signals you fight.', fx:()=>{ fac('press',-4); fac('board',4); }},
+    {label:'Wish them luck publicly', tag:'bad', res:'You look weak. Morale dips.', fx:()=>{ fac('staff',-4); fac('press',-3); }} ]};}},
+ { id:'boycott', weight:1.1, when:()=>myValue()>rivalValue()+8, build:()=>{ const t=topYouSeg();
+   return { speaker:'📣 Activist Heat', prompt:`Now that you're the market leader, activists are hammering CrispCo over plastic packaging.`, opts:[
+    {label:'Go compostable (pricey)', tag:'good', res:'Costs a fortune, but the press adore it.', fx:()=>{ fac('board',-6); fac('press',10); }},
+    {label:'Ride it out', tag:'bad', res:'The boycott bites your flagship.', fx:()=>{ fac('press',-8); loseShare(t,3); }} ]};}},
+ { id:'stumble', weight:1.1, when:()=>rivalValue()>myValue()+8, build:()=>{
+   return { speaker:'📰 Rival Meltdown', prompt:`BigSnack's CEO said something unhinged on a podcast. They're in full crisis mode.`, opts:[
+    {label:'Capitalize — go on offense', tag:'good', res:'You seize the moment and grab shelf everywhere.', fx:()=>{ S.segs.forEach(s=>shift(s,'you',4,true)); fac('press',4); }},
+    {label:'Stay classy', tag:'mid', res:'You take the high road. Small goodwill.', fx:()=>{ fac('press',7); }} ]};}},
+ { id:'supply', weight:1, build:()=>{ const t=seg('classic');
+   return { speaker:'📉 Supply Shock', prompt:`Potato prices just spiked — margins in ${t.emoji} ${t.name} are getting crushed.`, opts:[
+    {label:'Absorb the cost', tag:'mid', res:'You eat the margin to hold the category.', fx:()=>{ fac('board',-4); }},
+    {label:'Hike prices', tag:'bad', res:`Shoppers flee ${t.name}.`, fx:()=>{ t.d=COLD; }} ]};}},
+ { id:'celeb', weight:1, build:()=>{ const t=[...S.segs].sort((a,b)=>b.you-a.you)[1]||rand4();
+   return { speaker:'🌟 Celebrity Deal', prompt:`A global megastar wants to be the face of your ${t.emoji} ${t.name} brand.`, opts:[
+    {label:`Sign the deal`, tag:'good', res:`${t.name} gets a massive halo — and a hot streak.`, fx:()=>{ t.d=HOT; shift(t,'you',6,false); fac('board',-4); }},
+    {label:'Too expensive — pass', tag:'mid', res:'You keep the cash.', fx:()=>{ fac('board',3); }} ]};}},
+ { id:'investor', weight:1, when:()=>coldestMine()&&coldestMine().d<0.95, build:()=>{ const t=coldestMine();
+   return { speaker:'💼 Activist Investor', prompt:`An activist investor demands you dump your fading ${t.emoji} ${t.name} business and bank the cash.`, opts:[
+    {label:`Exit ${t.name}`, tag:'mid', res:'You cut losses. The board approves; you surrender the position.', fx:()=>{ fac('board',6); loseShare(t,t.you); }},
+    {label:'Refuse — bet it recovers', tag:'mid', res:'You hold the line. The board grumbles.', fx:()=>{ fac('board',-4); }} ]};}},
+ { id:'strike', weight:1.1, when:()=>S.m.staff<45, build:()=>{ const t=topYouSeg();
+   return { speaker:'👷 Union Rep', prompt:`The warehouse floor is threatening to walk out over pay.`, opts:[
+    {label:'Give the raises', tag:'good', res:'Peace on the floor.', fx:()=>{ fac('staff',14); fac('board',-6); }},
+    {label:'Hold firm', tag:'bad', res:'They walk. Shipments slip.', fx:()=>{ fac('staff',-10); loseShare(t,4); }} ]};}},
+ { id:'fadpeak', weight:1, when:()=>hottestSeg().d>=1.4, build:()=>{ const t=hottestSeg();
+   return { speaker:'📊 Analyst Note', prompt:`Analysts warn the ${t.emoji} ${t.name} boom is about to peak and crash.`, opts:[
+    {label:'Cash out — rotate away early', tag:'mid', res:'You take profits and pivot out before the top.', fx:()=>{ t.d=1.0; fac('board',3); }},
+    {label:'Ride it to the top', tag:'bad', res:'Greedy. You stay all-in on a fad that could snap.', fx:()=>{ shift(t,'you',5,false); }} ]};}},
+];
+function maybeEvent(){
+  const elig=EVENTS.filter(e=>(!e.once||!S.usedEv[e.id])&&(!e.when||e.when()));
+  if(S.quarter>=2 && S.lastEv!==S.quarter-1 && elig.length && Math.random()<0.42) fireEvent(elig);
+  else choosePlay();
+}
+function pickW(list){ const bag=[]; list.forEach(e=>{const w=Math.round((e.weight||1)*10);for(let i=0;i<w;i++)bag.push(e);}); return bag[Math.floor(Math.random()*bag.length)]; }
+function fireEvent(elig){
+  const e=pickW(elig), card=e.build();
+  document.getElementById('main').innerHTML=`<div class="ticker">${S.ticker}</div>
+    <span class="tag mid" style="background:#241d30;color:var(--purp)">📨 Situation — Q${S.quarter}</span>
+    <div class="speaker">${card.speaker}</div><div class="prompt">${card.prompt}</div>
+    <div class="options">${card.opts.map((o,i)=>`<button class="opt" data-ev="${i}"><div class="ol">${o.label}</div></button>`).join('')}</div>`;
+  document.querySelectorAll('[data-ev]').forEach(b=>b.onclick=()=>resolveEvent(e,card.opts[+b.dataset.ev]));
+}
+function advance(dead,win){
+  if(dead)return end('📉',`Fired in Q${S.quarter}.`,`At $${myValue()}M, ${dead.emoji} ${dead.fire}.`);
+  if(win)return end('🛒','YOU OWN THE SHELF.',`You led BigSnack by $${myValue()-rivalValue()}M — a decisive win.`);
+  S.quarter++;
+  if(S.quarter>DEADLINE) return myValue()>rivalValue()
+    ? end('🛒','TIME — and you were ahead.',`Q${DEADLINE}: you $${myValue()}M vs BigSnack $${rivalValue()}M. You held the shelf.`)
+    : end('🏭','TIME — BigSnack was ahead.',`Q${DEADLINE}: you $${myValue()}M vs BigSnack $${rivalValue()}M. They kept the shelf.`);
+  startQuarter(false);
+}
+function resolveEvent(e,opt){
+  const bm={...S.m}, bd=S.segs.map(s=>s.d), by=S.segs.map(s=>s.you);
+  opt.fx(); S.usedEv[e.id]=true; S.lastEv=S.quarter;
+  const rows=[];
+  FACTIONS.forEach(f=>{const dd=S.m[f.key]-bm[f.key]; if(dd)rows.push(`<span class="${dd>0?'up':'down'}">${f.emoji} ${dd>0?'+':''}${dd}</span>`);});
+  S.segs.forEach((s,i)=>{const dy=s.you-by[i]; if(dy)rows.push(`<span class="${dy>0?'up':'down'}">${s.emoji} share ${dy>0?'+':''}${dy}</span>`);
+    if(s.d!==bd[i])rows.push(`<span>${s.emoji} → ${trendIcon(s.d)} ${trendWord(s.d)}</span>`);});
+  render();
+  const dead=FACTIONS.find(f=>S.m[f.key]<=0), win=myValue()-rivalValue()>=LEAD;
+  document.getElementById('main').innerHTML=`<span class="tag ${opt.tag}">${opt.tag==='good'?'Played it well':opt.tag==='bad'?'That stung':'Done'}</span>
+    <div class="rtext">${opt.res}</div>${rows.length?`<div class="chg">${rows.join(' · ')}</div>`:''}
+    <button class="cont">${dead?'See how it ended →':win?'YOU WIN THE SHELF →':'Next quarter →'}</button>`;
+  document.querySelector('.cont').onclick=()=>advance(dead,win);
 }
 function choosePlay(){
   document.getElementById('main').innerHTML=`<div class="ticker">${S.ticker}</div>
@@ -296,7 +395,8 @@ function showIntro(onClose,label){
     • <b>Bail on ❄️ cold categories</b> — your share there loses value and bleeds. Don't pour money into a fad that's fading.<br>
     • <b>Don't overstuff one category</b> — it <b>saturates</b> (high share → tiny gains). Spread as trends move.<br>
     • Keep <b>Board / Staff / Press</b> above 35 — below that they cripple you. Stabilize when needed.<br>
-    • The hot category keeps shifting — <b>adapt every quarter</b>, don't run one routine.
+    • The hot category keeps shifting — <b>adapt every quarter</b>, don't run one routine.<br>
+    • <b>📨 Situations</b> pop up — scandals, defectors, viral trends, buyout offers. Hard choices with no clean answer; they shift trends, factions, and share. Read the room.
    </div>
    <button class="cont">${label}</button>`;
   document.querySelector('.cont').onclick=onClose;
